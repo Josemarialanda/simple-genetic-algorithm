@@ -11,17 +11,6 @@
   (major1) == 0 && (major2) == 1 && (minor) <= 0)
 #endif /* MIN_VERSION_simple_genetic_algorithm */
 
-/* package array-0.5.4.0 */
-#ifndef VERSION_array
-#define VERSION_array "0.5.4.0"
-#endif /* VERSION_array */
-#ifndef MIN_VERSION_array
-#define MIN_VERSION_array(major1,major2,minor) (\
-  (major1) <  0 || \
-  (major1) == 0 && (major2) <  5 || \
-  (major1) == 0 && (major2) == 5 && (minor) <= 4)
-#endif /* MIN_VERSION_array */
-
 /* package base-4.14.1.0 */
 #ifndef VERSION_base
 #define VERSION_base "4.14.1.0"
@@ -144,8 +133,11 @@
 #endif /* MIN_TOOL_VERSION_strip */
 
 #ifndef CURRENT_COMPONENT_ID
-#define CURRENT_COMPONENT_ID "simple-genetic-algorithm-0.1.0.0-38pzb1SFg18DxgHRjPqF6W-simple-genetic-algorithm"
+#define CURRENT_COMPONENT_ID "simple-genetic-algorithm-0.1.0.0-F3reKpnR9tf5ZwfmLtfdWg-simple-genetic-algorithm"
 #endif /* CURRENT_COMPONENT_ID */
 #ifndef CURRENT_PACKAGE_VERSION
 #define CURRENT_PACKAGE_VERSION "0.1.0.0"
 #endif /* CURRENT_PACKAGE_VERSION */
+
+#undef CURRENT_PACKAGE_KEY
+#undef CURRENT_COMPONENT_ID
