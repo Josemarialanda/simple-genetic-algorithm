@@ -52,7 +52,7 @@ randomGenotype n = sequence $ replicate n $ randomRIO (0,1 :: Int)
 
 randomPopulation :: NumberOfGenes -> PopulationSize -> IO Population
 randomPopulation n m = (sequence $ [randomGenotype n | _ <- [1..m]]) >>= (\xs -> return $ Population xs)
--- TODO: Fix crossover (some individuals are reproducing asexually... :/)
+
 cross :: CrossProbability -> Population -> IO Population
 cross cp (Population pop) = do
   shuffle1 <- shuffle pop
@@ -126,10 +126,10 @@ runAlgorithm (Algorithm cp mp ps mg) (ProblemData gn obj) = do
   helper 0 population
     where helper :: Generation -> Population -> IO ()
           helper gen pop = do
-                           -- pop'  <- cross cp pop
-                           --pop'' <- mut mp pop'
+                           pop'  <- cross cp pop
+                           pop'' <- mut mp pop'
 
-                           pop'' <- mut mp pop -- temporary
+                           --pop'' <- mut mp pop -- temporary
 
                            nextPop@(Population p) <- return $ survivalSelection ps pop'' pop
                            Solution genotype phenotype <- return $ Solution (head p) (f (head p))
@@ -140,35 +140,3 @@ runAlgorithm (Algorithm cp mp ps mg) (ProblemData gn obj) = do
 
 main :: IO ()
 main = runAlgorithm algorithm problemData
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-p = Population [[1,1,1,1,1,1,1,1,1,1,1],
-                [2,2,2,2,2,2,2,2,2,2,2]]
-
-p_ =           [[1,1,1,1,1,1,1,1,1,1,1],
-                [2,2,2,2,2,2,2,2,2,2,2]]
-testMutation = do
-  (Population gs) <-  mut 0.9 p
-  print $ show p_ ++ " -> " ++ (show $ map f p_)
-  print $ show gs ++ " -> " ++ (show $ map f gs)
-
-testCross = do
-  (Population gs) <- cross 0.9 p
-  print $ show p_ ++ " -> " ++ (show $ map f p_)
-  print $ show gs ++ " -> " ++ (show $ map f gs)
