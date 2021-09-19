@@ -113,7 +113,7 @@ printPopulation (Population pop) = mapM_ print pop
 
 gamma :: Genotype
 gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
-  where n = 64
+  where n = 128
 
 f :: Genotype -> Phenotype
 f genotype = let xs = zip genotype gamma
