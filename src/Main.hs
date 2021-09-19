@@ -39,14 +39,6 @@ randBit :: IO Integer
 randBit = randPerc >>= \p -> if p < 0.5 then
   return 1 else return 0
 
-gamma :: Genotype
-gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
-  where n = 128
-
-f :: Genotype -> Phenotype
-f genotype = let xs = zip genotype gamma
-             in  sum $ map (\(a,b) -> if a == b then 0 else 1) xs
-
 randomGenotype :: NumberOfGenes -> IO Genotype
 randomGenotype n = sequence $ replicate n $ randomRIO (0,1 :: Int)
 
@@ -117,6 +109,14 @@ survivalSelection ps (Population p1) (Population p2) = Population $ take ps $ so
 printPopulation :: Population -> IO ()
 printPopulation (Population pop) = mapM_ print pop
 
+gamma :: Genotype
+gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
+  where n = 128
+
+f :: Genotype -> Phenotype
+f genotype = let xs = zip genotype gamma
+             in  sum $ map (\(a,b) -> if a == b then 0 else 1) xs
+
 problemData = ProblemData (length gamma) f
 algorithm   = Algorithm 0.9 (1/(fromIntegral (length gamma))) 100 100
 
@@ -128,9 +128,6 @@ runAlgorithm (Algorithm cp mp ps mg) (ProblemData gn obj) = do
           helper gen pop = do
                            pop'  <- cross cp pop
                            pop'' <- mut mp pop'
-
-                           --pop'' <- mut mp pop -- temporary
-
                            nextPop@(Population p) <- return $ survivalSelection ps pop'' pop
                            Solution genotype phenotype <- return $ Solution (head p) (f (head p))
                            print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
