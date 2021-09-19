@@ -122,26 +122,64 @@ f genotype = let xs = zip genotype gamma
 problemData = ProblemData (length gamma) f
 algorithm   = Algorithm 0.9 (1/(fromIntegral (length gamma))) 100 100
 
+  -- (m+l) strategy
 runAlgorithm :: Algorithm -> ProblemData -> IO ()
 runAlgorithm (Algorithm cp mp ps mg) (ProblemData gn obj) = do
   population <- randomPopulation gn ps
-
-  -- TODO: create log file
-
   helper 0 population
     where helper :: Generation -> Population -> IO ()
           helper gen pop = do
-                           pop'  <- cross cp pop
-                           pop'' <- mut mp pop'
-                           nextPop@(Population p) <- return $ survivalSelection ps pop'' pop
+                           q  <- cross cp pop
+                           q'@(Population qs) <- mut mp q
+                           nextPop@(Population p) <- return $ survivalSelection ps q' pop
                            Solution genotype phenotype <- return $ Solution (head p) (f (head p))
-
-                           -- TODO: write solution to log
-
                            print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
                            if gen < mg then helper (gen+1) nextPop
                                        else do putStrLn ""
                                                print $ "Solution: " ++ join (map show genotype) ++ " -> " ++ show phenotype
+
+-- (m,l) strategy
+runAlgorithm' :: Algorithm -> ProblemData -> IO ()
+runAlgorithm' (Algorithm cp mp ps mg) (ProblemData gn obj) = do
+  population <- randomPopulation gn ps
+  helper 0 population
+    where helper :: Generation -> Population -> IO ()
+          helper gen pop = do
+                           q  <- cross cp pop
+                           q' <- mut mp q
+                           nextPop@(Population p) <- return $ survivalSelection ps q' q'
+                           Solution genotype phenotype <- return $ Solution (head p) (f (head p))
+                           print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
+                           if gen < mg then helper (gen+1) nextPop
+                                       else do putStrLn ""
+                                               print $ "Solution: " ++ join (map show genotype) ++ " -> " ++ show phenotype
+
+-- (m,l) strategy (with ellitism)
+runAlgorithm'' :: Algorithm -> ProblemData -> IO ()
+runAlgorithm'' (Algorithm cp mp ps mg) (ProblemData gn obj) = do
+  population <- randomPopulation gn ps
+  helper 0 population
+    where helper :: Generation -> Population -> IO ()
+          helper gen pop = do
+                           q  <- cross cp pop
+                           q' <- mut mp q
+                           nextPop@(Population p) <- return $ survivalSelection ps q' q'
+                           (Population pBest) <- return $ survivalSelection 1 pop pop
+                           nextPop'@(Population p') <- return $ addBestFromP (pBest !! 0) $ removeWorst nextPop
+                           nextPop''@(Population p'') <- return $ survivalSelection ps nextPop' nextPop'
+                           Solution genotype phenotype <- return $ Solution (head p') (f (head p'))
+                           print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
+                           if gen < mg then helper (gen+1) nextPop
+                                       else do putStrLn ""
+                                               print $ "Solution: " ++ join (map show genotype) ++ " -> " ++ show phenotype
+          removeWorst :: Population -> Population
+          removeWorst (Population p) = Population $ reverse $ tail $ sortBy sf p
+            where sf g1 g2
+                    | f g1 > f g2 = LT
+                    | f g1 < f g2 = GT
+                    | otherwise   = EQ
+          addBestFromP :: Genotype -> Population -> Population
+          addBestFromP genotype (Population p) = Population $ genotype:p
 
 main :: IO ()
 main = runAlgorithm algorithm problemData
