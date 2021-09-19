@@ -4,6 +4,8 @@ import Data.List
 import System.Random
 import Data.Array.IO
 import Control.Monad
+import Control.Monad (when)
+import Data.Char
 
 type NumberOfGenes       = Int
 type ObjFunction         = Genotype -> Phenotype
@@ -111,7 +113,7 @@ printPopulation (Population pop) = mapM_ print pop
 
 gamma :: Genotype
 gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
-  where n = 128
+  where n = 64
 
 f :: Genotype -> Phenotype
 f genotype = let xs = zip genotype gamma
@@ -123,6 +125,9 @@ algorithm   = Algorithm 0.9 (1/(fromIntegral (length gamma))) 100 100
 runAlgorithm :: Algorithm -> ProblemData -> IO ()
 runAlgorithm (Algorithm cp mp ps mg) (ProblemData gn obj) = do
   population <- randomPopulation gn ps
+
+  -- TODO: create log file
+
   helper 0 population
     where helper :: Generation -> Population -> IO ()
           helper gen pop = do
@@ -130,6 +135,9 @@ runAlgorithm (Algorithm cp mp ps mg) (ProblemData gn obj) = do
                            pop'' <- mut mp pop'
                            nextPop@(Population p) <- return $ survivalSelection ps pop'' pop
                            Solution genotype phenotype <- return $ Solution (head p) (f (head p))
+
+                           -- TODO: write solution to log
+
                            print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
                            if gen < mg then helper (gen+1) nextPop
                                        else do putStrLn ""
