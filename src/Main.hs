@@ -102,90 +102,50 @@ mut mp (Population pop) = Population <$> (sequence $ sequence <$> map (\genotype
                             else return gene
 
 survivalSelection :: PopulationSize -> Population -> Population -> Population
-survivalSelection ps (Population p1) (Population p2) = Population $ take ps $ sortBy sf (p1 ++ p2)
-  where sf g1 g2
-          | f g1 < f g2 = LT
-          | f g1 > f g2 = GT
-          | otherwise   = EQ
+survivalSelection ps (Population p1) (Population p2) = Population $ take ps $ sortBy genoSort (p1 ++ p2)
 
-printPopulation :: Population -> IO ()
-printPopulation (Population pop) = mapM_ print pop
+genoSort :: Genotype -> Genotype -> Ordering
+genoSort g1 g2
+  | f g1 < f g2 = LT
+  | f g1 > f g2 = GT
+  | otherwise   = EQ
 
 gamma :: Genotype
 gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
-  where n = 512
+  where n = 256
 
 f :: Genotype -> Phenotype
 f genotype = let xs = zip genotype gamma
              in  sum $ map (\(a,b) -> if a == b then 0 else 1) xs
 
+data Strategy = Strategy1 -- (m+l)
+              | Strategy2 -- (m,l)
+              | Strategy3 -- (m,l) + elitism
+              deriving Eq
+
 problemData = ProblemData (length gamma) f
 algorithm   = Algorithm 0.9 (1/(fromIntegral (length gamma))) 100 100
 
-  -- (m+l) strategy
-runAlgorithm :: Algorithm -> ProblemData -> IO ()
-runAlgorithm (Algorithm cp mp ps mg) (ProblemData gn obj) = do
-  appendFile "strategy_1.txt" ('\n':"(m+l) strategy")
-  population <- randomPopulation gn ps
-  helper 0 population
-    where helper :: Generation -> Population -> IO ()
-          helper gen pop = do
-                           q  <- cross cp pop
-                           q'@(Population qs) <- mut mp q
-                           nextPop@(Population p) <- return $ survivalSelection ps q' pop
-                           Solution genotype phenotype <- return $ Solution (head p) (f (head p))
-                           appendFile "strategy_1.txt" ('\n':(show gen) ++ "," ++ show phenotype)
-                           print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
-                           if gen < mg then helper (gen+1) nextPop
-                                       else do putStrLn ""
-                                               print $ "Solution: " ++ join (map show genotype) ++ " -> " ++ show phenotype
-
--- (m,l) strategy
-runAlgorithm' :: Algorithm -> ProblemData -> IO ()
-runAlgorithm' (Algorithm cp mp ps mg) (ProblemData gn obj) = do
-  appendFile "strategy_2.txt" ('\n':"(m,l) strategy")
-  population <- randomPopulation gn ps
-  helper 0 population
-    where helper :: Generation -> Population -> IO ()
-          helper gen pop = do
-                           q  <- cross cp pop
-                           q' <- mut mp q
-                           nextPop@(Population p) <- return $ survivalSelection ps q' q'
-                           Solution genotype phenotype <- return $ Solution (head p) (f (head p))
-                           appendFile "strategy_2.txt" ('\n':(show gen) ++ "," ++ show phenotype)
-                           print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
-                           if gen < mg then helper (gen+1) nextPop
-                                       else do putStrLn ""
-                                               print $ "Solution: " ++ join (map show genotype) ++ " -> " ++ show phenotype
-
--- (m,l) strategy (with ellitism)
-runAlgorithm'' :: Algorithm -> ProblemData -> IO ()
-runAlgorithm'' (Algorithm cp mp ps mg) (ProblemData gn obj) = do
-  appendFile "strategy_3.txt" ('\n':"(m,l) (with ellitism) strategy")
-  population <- randomPopulation gn ps
-  helper 0 population
-    where helper :: Generation -> Population -> IO ()
-          helper gen pop = do
-                           q  <- cross cp pop
-                           q' <- mut mp q
-                           nextPop@(Population p) <- return $ survivalSelection ps q' q'
-                           (Population pBest) <- return $ survivalSelection 1 pop pop
-                           nextPop'@(Population p') <- return $ addBestFromP (pBest !! 0) $ removeWorst nextPop
-                           nextPop''@(Population p'') <- return $ survivalSelection ps nextPop' nextPop'
-                           Solution genotype phenotype <- return $ Solution (head p') (f (head p'))
-                           appendFile "strategy_3.txt" ('\n':(show gen) ++ "," ++ show phenotype)
-                           print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
-                           if gen < mg then helper (gen+1) nextPop
-                                       else do putStrLn ""
-                                               print $ "Solution: " ++ join (map show genotype) ++ " -> " ++ show phenotype
-          removeWorst :: Population -> Population
-          removeWorst (Population p) = Population $ reverse $ tail $ sortBy sf p
-            where sf g1 g2
-                    | f g1 > f g2 = LT
-                    | f g1 < f g2 = GT
-                    | otherwise   = EQ
-          addBestFromP :: Genotype -> Population -> Population
-          addBestFromP genotype (Population p) = Population $ genotype:p
+run :: Strategy -> Algorithm -> ProblemData -> IO ()
+run strategy (Algorithm cp mp ps mg) (ProblemData gn obj) = do randomPopulation gn ps >>= (\pop -> helper 0 pop)
+    where helper :: MaxGeneration -> Population -> IO ()
+          helper gen pop = do q  <- cross cp pop
+                              q' <- mut mp q
+                              let nextPop@(Population p)
+                                    | strategy == Strategy1 = survivalSelection ps q' pop               -- (m+l)
+                                    | strategy == Strategy2 = survivalSelection ps q' q'                -- (m,l)
+                                    | strategy == Strategy3 = addBestFromPopAndRemoveWorstFromQ' pop q' -- (m,l) + elitism
+                                  Solution genotype phenotype = Solution (head p) (f (head p))
+                                  in do appendFile (strat strategy) ('\n':(show gen) ++ "," ++ show phenotype)
+                                        print $ "Generation " ++ (show gen) ++ ":  " ++ join (map show genotype) ++ " -> " ++ show phenotype
+                                        if gen < mg then helper (gen+1) nextPop 
+                                                    else print $ "Solution: " ++ join (map show genotype) ++ " -> " ++ show phenotype
+          addBestFromPopAndRemoveWorstFromQ' (Population p1) (Population p2) = let pBest      = head  $ sortBy genoSort p1
+                                                                                   qWithPBest = Population $ pBest : (init $ sortBy genoSort p2)      
+                                                                                   in survivalSelection ps qWithPBest qWithPBest
+          strat Strategy1 = "strategy_1.txt"
+          strat Strategy2 = "strategy_2.txt"
+          strat Strategy3 = "strategy_3.txt"
 
 main :: IO ()
-main = runAlgorithm'' algorithm problemData
+main = run Strategy3 algorithm problemData
