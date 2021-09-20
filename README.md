@@ -38,7 +38,7 @@ gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
   where n = 128 -- change bit count
 ```
 
-El programa se compilo con la versión lts-17.14 (8.10.4) de GHC usando la herramienta Stack.
+El programa se compiló con la versión lts-17.14 (8.10.4) de GHC usando la herramienta Stack.
 
 * Descargar Stack [Install/upgrade Stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/).
 
