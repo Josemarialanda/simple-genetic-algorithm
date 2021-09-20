@@ -110,22 +110,6 @@ genoSort g1 g2
   | f g1 > f g2 = GT
   | otherwise   = EQ
 
-gamma :: Genotype
-gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
-  where n = 256
-
-f :: Genotype -> Phenotype
-f genotype = let xs = zip genotype gamma
-             in  sum $ map (\(a,b) -> if a == b then 0 else 1) xs
-
-data Strategy = Strategy1 -- (m+l)
-              | Strategy2 -- (m,l)
-              | Strategy3 -- (m,l) + elitism
-              deriving Eq
-
-problemData = ProblemData (length gamma) f
-algorithm   = Algorithm 0.9 (1/(fromIntegral (length gamma))) 100 100
-
 run :: Strategy -> Algorithm -> ProblemData -> IO ()
 run strategy (Algorithm cp mp ps mg) (ProblemData gn obj) = do randomPopulation gn ps >>= (\pop -> helper 0 pop)
     where helper :: MaxGeneration -> Population -> IO ()
@@ -147,5 +131,25 @@ run strategy (Algorithm cp mp ps mg) (ProblemData gn obj) = do randomPopulation 
           strat Strategy2 = "strategy_2.txt"
           strat Strategy3 = "strategy_3.txt"
 
+f :: Genotype -> Phenotype
+f genotype = let xs = zip genotype gamma
+             in  sum $ map (\(a,b) -> if a == b then 0 else 1) xs
+
+gamma :: Genotype
+gamma = [if even x then 0 else 1 | x <- [0,1..n] ]
+  where n = 128 -- change bit count
+
+data Strategy = Strategy1 -- (m+l)
+              | Strategy2 -- (m,l)
+              | Strategy3 -- (m,l) + elitism
+              deriving Eq
+
+problemData = ProblemData (length gamma) f
+algorithm   = Algorithm 0.9 (1/(fromIntegral (length gamma))) 100 100 -- change population size and num of generations
+
+-- options:
+--    Strategy1 (m+l)
+--    Strategy2 (m,l)
+--    Strategy3 (m,l) + elitism
 main :: IO ()
-main = run Strategy3 algorithm problemData
+main = run Strategy1 algorithm problemData
