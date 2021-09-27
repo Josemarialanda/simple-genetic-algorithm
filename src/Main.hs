@@ -60,7 +60,7 @@ cross cp (Population pop) = do
         g [x]   = x
         simpleCrossover :: (Genotype,Genotype) -> IO [Genotype]
         simpleCrossover (g1,g2) = do n <- randPerc
-                                     if cp > n then do
+                                     if n < cp then do
                                                     k <- randomRIO (1, (length gamma) -1)
                                                     let g1' = splitAt' k g1
                                                         g2' = splitAt' k g2
@@ -98,8 +98,20 @@ mut :: MutationProbability -> Population -> IO Population
 mut mp (Population pop) = Population <$> (sequence $ sequence <$> map (\genotype -> map bitFlip genotype) pop)
   where bitFlip gene = do
                   n <- randPerc
-                  if mp > n then return $ if gene == 0 then 1 else 0
+                  if n < mp then return $ if gene == 0 then 1 else 0
                             else return gene
+
+
+-- =O
+mut' :: Double -> Population -> IO Population
+mut' mp (Population pop) = Population <$> (sequence $ map (\genotype -> randPerc >>= 
+                                          (\n -> if n < mp then return (bitFlip genotype) 
+                                                           else return genotype)) pop)
+  where bitFlip :: Genotype -> Genotype
+        bitFlip [] = []
+        bitFlip (x:xs) = [flip x] ++ bitFlip xs
+        flip 0 = 1
+        flip 1 = 0
 
 survivalSelection :: PopulationSize -> Population -> Population -> Population
 survivalSelection ps (Population p1) (Population p2) = Population $ take ps $ sortBy genoSort (p1 ++ p2)
