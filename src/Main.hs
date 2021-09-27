@@ -64,7 +64,7 @@ cross cp (Population pop) = do
                                                     k <- randomRIO (1, (length gamma) -1)
                                                     let g1' = splitAt' k g1
                                                         g2' = splitAt' k g2
-                                                        in return [fst g1' ++ snd g1', fst g2' ++ snd g1']
+                                                        in return [fst g1' ++ snd g2', fst g2' ++ snd g1']
                                                 else return [g1,g2]
 
 splitAt' :: Int -> [a] -> ([a], [a])
@@ -94,6 +94,7 @@ shuffle xs = do
     newArray :: Int -> [a] -> IO (IOArray Int a)
     newArray n xs =  newListArray (1,n) xs
 
+-- mutate every genotype in population and some flip only some genes in genotype
 mut :: MutationProbability -> Population -> IO Population
 mut mp (Population pop) = Population <$> (sequence $ sequence <$> map (\genotype -> map bitFlip genotype) pop)
   where bitFlip gene = do
@@ -101,17 +102,21 @@ mut mp (Population pop) = Population <$> (sequence $ sequence <$> map (\genotype
                   if n < mp then return $ if gene == 0 then 1 else 0
                             else return gene
 
-
--- =O
+-- mutate some genotype in population and flip only some genes in genotype
 mut' :: Double -> Population -> IO Population
 mut' mp (Population pop) = Population <$> (sequence $ map (\genotype -> randPerc >>= 
-                                          (\n -> if n < mp then return (bitFlip genotype) 
+                                          (\n -> if n < mp then sequence $ map bitFlip genotype
                                                            else return genotype)) pop)
-  where bitFlip :: Genotype -> Genotype
-        bitFlip [] = []
-        bitFlip (x:xs) = [flip x] ++ bitFlip xs
-        flip 0 = 1
-        flip 1 = 0
+  where bitFlip 0 = randPerc >>= (\n -> if n < 0.5 then return 1 else return 0)
+        bitFlip 1 = randPerc >>= (\n -> if n < 0.5 then return 0 else return 1)
+
+-- mutate some genotype in population and flip every gene in genotype
+mut'' :: Double -> Population -> IO Population
+mut'' mp (Population pop) = Population <$> (sequence $ map (\genotype -> randPerc >>= 
+                                          (\n -> if n < mp then return (map bitFlip genotype) 
+                                                           else return genotype)) pop)
+  where bitFlip 0 = 1
+        bitFlip 1 = 0
 
 survivalSelection :: PopulationSize -> Population -> Population -> Population
 survivalSelection ps (Population p1) (Population p2) = Population $ take ps $ sortBy genoSort (p1 ++ p2)
@@ -164,4 +169,4 @@ algorithm   = Algorithm 0.9 (1/(fromIntegral (length gamma))) 100 100 -- change 
 --    Strategy2 (m,l)
 --    Strategy3 (m,l) + elitism
 main :: IO ()
-main = run Strategy1 algorithm problemData
+main = run Strategy2 algorithm problemData
